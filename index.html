@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jamiat Bahawalpur - Islamic Organization</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="logo-section">
+                <img src="attached_assets/273757239_3105311723073959_968301816494351833_n_1763158639517.jpg" alt="Jamiat Logo" class="logo">
+                <div class="header-text">
+                    <h1>Jamiat Bahawalpur</h1>
+                    <p>Islamic Organization Portal</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tabs">
+        <button class="tab-btn active" data-tab="messages">Messages</button>
+        <button class="tab-btn" data-tab="programs">Programs</button>
+        <button class="tab-btn" data-tab="attendance">Attendance</button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container">
+        <!-- Messages Section -->
+        <section id="messages" class="tab-content active">
+            <div class="section-header">
+                <h2>Community Messages</h2>
+                <button class="btn btn-primary" onclick="openMessageModal()">+ New Message</button>
+            </div>
+            <div id="messagesList" class="messages-list"></div>
+        </section>
+
+        <!-- Programs Section -->
+        <section id="programs" class="tab-content">
+            <div class="section-header">
+                <h2>Programs Timeline</h2>
+                <button class="btn btn-secondary" onclick="openProgramModal()">+ Add Program</button>
+            </div>
+            <div id="programsList" class="programs-list"></div>
+        </section>
+
+        <!-- Attendance Section -->
+        <section id="attendance" class="tab-content">
+            <div class="section-header">
+                <h2>Member Attendance</h2>
+                <div class="btn-group">
+                    <button class="btn btn-outline" onclick="openMemberModal()">+ Add Member</button>
+                    <button class="btn btn-accent" onclick="openAttendanceModal()">Record Attendance</button>
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-title">Total Members</div>
+                    <div class="stat-value" id="totalMembers">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Total Programs</div>
+                    <div class="stat-value" id="totalPrograms">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title">Attendance Records</div>
+                    <div class="stat-value" id="totalAttendance">0</div>
+                </div>
+            </div>
+            <div id="membersList" class="members-grid"></div>
+        </section>
+    </main>
+
+    <!-- Message Modal -->
+    <div id="messageModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeMessageModal()">&times;</span>
+            <h2>Post New Message</h2>
+            <form id="messageForm" onsubmit="submitMessage(event)">
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="messageName" required>
+                </div>
+                <div class="form-group">
+                    <label>Message</label>
+                    <textarea id="messageText" rows="4" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Attach Images (Optional)</label>
+                    <input type="file" id="messageImages" accept="image/*" multiple>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeMessageModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Post Message</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Program Modal -->
+    <div id="programModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeProgramModal()">&times;</span>
+            <h2>Add New Program</h2>
+            <form id="programForm" onsubmit="submitProgram(event)">
+                <div class="form-group">
+                    <label>Program Title</label>
+                    <input type="text" id="programTitle" required>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="programDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="programDesc" rows="4" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Featured Image (Optional)</label>
+                    <input type="file" id="programImage" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label>Gallery Images (Optional)</label>
+                    <input type="file" id="programGallery" accept="image/*" multiple>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeProgramModal()">Cancel</button>
+                    <button type="submit" class="btn btn-secondary">Add Program</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Member Modal -->
+    <div id="memberModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeMemberModal()">&times;</span>
+            <h2>Add New Member</h2>
+            <form id="memberForm" onsubmit="submitMember(event)">
+                <div class="form-group">
+                    <label>Member Name</label>
+                    <input type="text" id="memberName" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeMemberModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Member</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Attendance Modal -->
+    <div id="attendanceModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAttendanceModal()">&times;</span>
+            <h2>Record Program Attendance</h2>
+            <form id="attendanceForm" onsubmit="submitAttendance(event)">
+                <div class="form-group">
+                    <label>Select Program</label>
+                    <select id="attendanceProgram" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Select Attending Members</label>
+                    <div id="memberCheckboxes" class="checkbox-group"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeAttendanceModal()">Cancel</button>
+                    <button type="submit" class="btn btn-accent">Record Attendance</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="bottom-nav-btn active" data-tab="messages">
+            <span class="icon">💬</span>
+            <span>Messages</span>
+        </button>
+        <button class="bottom-nav-btn" data-tab="programs">
+            <span class="icon">📅</span>
+            <span>Programs</span>
+        </button>
+        <button class="bottom-nav-btn" data-tab="attendance">
+            <span class="icon">👥</span>
+            <span>Attendance</span>
+        </button>
+    </nav>
+
+    <script src="java.js"></script>
+</body>
+</html>
