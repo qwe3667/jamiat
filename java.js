@@ -1,255 +1,246 @@
-// -------------------------------
-// 🔥 Firebase Setup
-// -------------------------------
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-
+// =====================
+// Firebase Initialization
+// =====================
 const firebaseConfig = {
     apiKey: "AIzaSyBbtDb7EIOmaP7ytK3IVGqFcyLJwKPfSnc",
     authDomain: "jamiat-7dbdb.firebaseapp.com",
     projectId: "jamiat-7dbdb",
-    storageBucket: "jamiat-7dbdb.firebasestorage.app",
+    storageBucket: "jamiat-7dbdb.appspot.com",
     messagingSenderId: "568010033874",
     appId: "1:568010033874:web:4af8a3b81634dca4e53b0b",
     measurementId: "G-84DJH4HE48"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const storage = getStorage(app);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const storage = firebase.storage();
 
-// --------------------------------------------------
-// 🔥 REALTIME LOADERS (Messages, Programs, Members)
-// --------------------------------------------------
-
-let messages = [];
-let programs = [];
-let members = [];
-let attendanceRecords = [];
-
-// ---- Load Messages ----
-onSnapshot(query(collection(db, "messages"), orderBy("date", "desc")), (snapshot) => {
-    messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    renderMessages();
-});
-
-// ---- Load Programs ----
-onSnapshot(query(collection(db, "programs"), orderBy("date", "desc")), (snapshot) => {
-    programs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    renderPrograms();
-    fillAttendanceProgramDropdown();
-});
-
-// ---- Load Members ----
-onSnapshot(collection(db, "members"), (snapshot) => {
-    members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    renderMembers();
-    fillMemberCheckboxes();
-});
-
-// ---- Load Attendance ----
-onSnapshot(collection(db, "attendance"), (snapshot) => {
-    attendanceRecords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    document.getElementById("totalAttendance").innerText = attendanceRecords.length;
-});
-
-// --------------------------------------------------
-// 🔥 IMAGE UPLOADER (common function)
-// --------------------------------------------------
-async function uploadImage(file, folder) {
-    const imageRef = ref(storage, `${folder}/${Date.now()}_${file.name}`);
-    await uploadBytes(imageRef, file);
-    return await getDownloadURL(imageRef);
-}
-
-// --------------------------------------------------
-// 🟦 POST MESSAGE
-// --------------------------------------------------
-async function submitMessage(e) {
-    e.preventDefault();
-
-    const name = document.getElementById("messageName").value;
-    const messageText = document.getElementById("messageText").value;
-    const images = document.getElementById("messageImages").files;
-
-    let imageURLs = [];
-
-    for (let img of images) {
-        const url = await uploadImage(img, "messageImages");
-        imageURLs.push(url);
+// =====================
+// LocalStorage fallback
+// =====================
+let messages = JSON.parse(localStorage.getItem('messages')) || [
+    {
+        id: 1,
+        name: 'Ahmed Ali',
+        message: 'Assalamu Alaikum! Reminder that our next study circle will be this Friday at 7 PM. Please make sure to attend.',
+        date: new Date(Date.now() - 86400000).toISOString(),
+        images: []
     }
+];
 
-    await addDoc(collection(db, "messages"), {
-        name,
-        message: messageText,
-        images: imageURLs,
-        date: Date.now()
-    });
-
-    closeMessageModal();
-}
-
-// --------------------------------------------------
-// 🟩 ADD PROGRAM
-// --------------------------------------------------
-async function submitProgram(e) {
-    e.preventDefault();
-
-    const title = document.getElementById("programTitle").value;
-    const date = document.getElementById("programDate").value;
-    const desc = document.getElementById("programDesc").value;
-
-    const featureImg = document.getElementById("programImage").files[0];
-    const galleryImgs = document.getElementById("programGallery").files;
-
-    let featureURL = "";
-    let galleryURLs = [];
-
-    if (featureImg) featureURL = await uploadImage(featureImg, "programFeatured");
-
-    for (let img of galleryImgs) {
-        const url = await uploadImage(img, "programGallery");
-        galleryURLs.push(url);
+let programs = JSON.parse(localStorage.getItem('programs')) || [
+    {
+        id: 1,
+        title: 'Weekly Study Circle',
+        date: '2024-11-10',
+        description: 'Our weekly study circle focused on the teachings of the Quran. We had excellent discussions and brother Ahmed led a beautiful presentation.',
+        isUpcoming: false,
+        featuredImage: null,
+        galleryImages: []
+    },
+    {
+        id: 2,
+        title: 'Community Service Day',
+        date: '2024-11-30',
+        description: 'Join us for our upcoming community service day where we\'ll be helping local families in need.',
+        isUpcoming: true,
+        featuredImage: null,
+        galleryImages: []
     }
+];
 
-    await addDoc(collection(db, "programs"), {
-        title,
-        date,
-        desc,
-        featureImg: featureURL,
-        gallery: galleryURLs
-    });
+let members = JSON.parse(localStorage.getItem('members')) || [
+    { id: 1, name: 'Ahmed Ali', joinDate: '2024-01-15' },
+    { id: 2, name: 'Muhammad Hassan', joinDate: '2024-01-20' },
+    { id: 3, name: 'Usman Khan', joinDate: '2024-02-01' }
+];
 
-    closeProgramModal();
+let attendance = JSON.parse(localStorage.getItem('attendance')) || [
+    { id: 1, programId: 1, memberId: 1, programTitle: 'Weekly Study Circle', memberName: 'Ahmed Ali', date: '2024-11-10' },
+    { id: 2, programId: 1, memberId: 2, programTitle: 'Weekly Study Circle', memberName: 'Muhammad Hassan', date: '2024-11-10' }
+];
+
+// =====================
+// Helper Functions
+// =====================
+function saveData() {
+    localStorage.setItem('messages', JSON.stringify(messages));
+    localStorage.setItem('programs', JSON.stringify(programs));
+    localStorage.setItem('members', JSON.stringify(members));
+    localStorage.setItem('attendance', JSON.stringify(attendance));
 }
 
-// --------------------------------------------------
-// 🟨 ADD MEMBER
-// --------------------------------------------------
-async function submitMember(e) {
-    e.preventDefault();
-
-    const name = document.getElementById("memberName").value;
-
-    await addDoc(collection(db, "members"), {
-        name
-    });
-
-    closeMemberModal();
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    return date.toLocaleDateString('en-US', options);
 }
 
-// --------------------------------------------------
-// 🟥 RECORD ATTENDANCE
-// --------------------------------------------------
-async function submitAttendance(e) {
-    e.preventDefault();
-
-    const programId = document.getElementById("attendanceProgram").value;
-    const checkboxes = document.querySelectorAll(".member-check");
-    let attended = [];
-
-    checkboxes.forEach(c => {
-        if (c.checked) attended.push(c.value);
-    });
-
-    await addDoc(collection(db, "attendance"), {
-        programId,
-        members: attended,
-        date: Date.now()
-    });
-
-    closeAttendanceModal();
+function getInitials(name) {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
-// --------------------------------------------------
-// 🔵 Render Functions (UI unchanged)
-// --------------------------------------------------
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+}
 
+// =====================
+// Render Functions
+// =====================
 function renderMessages() {
-    const list = document.getElementById("messagesList");
-    list.innerHTML = "";
+    const messagesList = document.getElementById('messagesList');
 
-    messages.forEach(msg => {
-        let html = `
-            <div class="message-card">
-                <h3>${msg.name}</h3>
-                <p>${msg.message}</p>
+    if (messages.length === 0) {
+        messagesList.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">💬</div>
+                <h3>No messages yet</h3>
+                <p>Be the first to share a message with the community</p>
+                <button class="btn btn-primary" onclick="openMessageModal()">Post First Message</button>
+            </div>
         `;
-        if (msg.images?.length) {
-            html += `<div class="msg-imgs">`;
-            msg.images.forEach(img => {
-                html += `<img src="${img}" class="msg-img">`;
-            });
-            html += `</div>`;
-        }
-        html += `</div>`;
-        list.innerHTML += html;
-    });
+        return;
+    }
+
+    messagesList.innerHTML = messages.map(msg => `
+        <div class="card">
+            <div class="card-header">
+                <div class="avatar">${getInitials(msg.name)}</div>
+                <div class="info">
+                    <h3>${msg.name}</h3>
+                    <div class="date">${formatDate(msg.date)}</div>
+                </div>
+            </div>
+            <div class="card-content">
+                <p>${msg.message}</p>
+                ${msg.images && msg.images.length > 0 ? `
+                    <div class="image-grid">
+                        ${msg.images.map(img => `<img src="${img}" alt="Attachment">`).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `).join('');
 }
 
 function renderPrograms() {
-    const list = document.getElementById("programsList");
-    list.innerHTML = "";
-
-    programs.forEach(p => {
-        list.innerHTML += `
-            <div class="program-card">
-                <h3>${p.title}</h3>
-                <p>${p.date}</p>
-                <p>${p.desc}</p>
+    const programsList = document.getElementById('programsList');
+    
+    if (programs.length === 0) {
+        programsList.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">📅</div>
+                <h3>No programs yet</h3>
+                <p>Start documenting your weekly programs and events</p>
+                <button class="btn btn-secondary" onclick="openProgramModal()">Add First Program</button>
             </div>
         `;
-    });
+        return;
+    }
 
-    document.getElementById("totalPrograms").innerText = programs.length;
+    const sortedPrograms = [...programs].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    programsList.innerHTML = sortedPrograms.map(prog => `
+        <div class="card program-card">
+            ${prog.featuredImage ? `<img src="${prog.featuredImage}" class="program-image" alt="${prog.title}">` : ''}
+            <div>
+                <span class="badge badge-date">${new Date(prog.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                ${prog.isUpcoming ? '<span class="badge badge-upcoming">Upcoming</span>' : ''}
+            </div>
+            <h3>${prog.title}</h3>
+            <p>${prog.description}</p>
+            ${prog.galleryImages && prog.galleryImages.length > 0 ? `
+                <h4 style="margin-top: 20px; margin-bottom: 10px;">Photo Gallery</h4>
+                <div class="image-grid">
+                    ${prog.galleryImages.map(img => `<img src="${img}" alt="${prog.title}">`).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
 }
 
-function renderMembers() {
-    const list = document.getElementById("membersList");
-    list.innerHTML = "";
+function renderMembersAndAttendance() {
+    const membersList = document.getElementById('membersList');
+    const totalMembersEl = document.getElementById('totalMembers');
+    const totalProgramsEl = document.getElementById('totalPrograms');
+    const totalAttendanceEl = document.getElementById('totalAttendance');
 
-    members.forEach(m => {
-        list.innerHTML += `
-            <div class="member-card">${m.name}</div>
+    totalMembersEl.textContent = members.length;
+    totalProgramsEl.textContent = programs.length;
+    totalAttendanceEl.textContent = attendance.length;
+
+    if (members.length === 0) {
+        membersList.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">👥</div>
+                <h3>No members yet</h3>
+                <p>Add members to start tracking attendance</p>
+                <button class="btn btn-primary" onclick="openMemberModal()">Add First Member</button>
+            </div>
         `;
-    });
+        return;
+    }
 
-    document.getElementById("totalMembers").innerText = members.length;
-}
+    membersList.innerHTML = members.map(member => {
+        const memberAttendance = attendance.filter(a => a.memberId === member.id).length;
+        const totalProgramsCount = programs.filter(p => !p.isUpcoming).length;
+        const attendanceRate = totalProgramsCount > 0 ? Math.round((memberAttendance / totalProgramsCount) * 100) : 0;
 
-function fillAttendanceProgramDropdown() {
-    const dropdown = document.getElementById("attendanceProgram");
-    dropdown.innerHTML = "";
-
-    programs.forEach(p => {
-        dropdown.innerHTML += `<option value="${p.id}">${p.title}</option>`;
-    });
-}
-
-function fillMemberCheckboxes() {
-    const box = document.getElementById("memberCheckboxes");
-    box.innerHTML = "";
-
-    members.forEach(m => {
-        box.innerHTML += `
-            <label><input type="checkbox" class="member-check" value="${m.id}"> ${m.name}</label>
+        return `
+            <div class="member-card">
+                <div class="member-header">
+                    <div class="avatar">${getInitials(member.name)}</div>
+                    <div class="member-info">
+                        <h4>${member.name}</h4>
+                        <div class="join-date">Joined ${member.joinDate}</div>
+                    </div>
+                </div>
+                <div class="attendance-stat">
+                    <span style="color: var(--text-light); font-size: 14px;">Attendance</span>
+                    <span class="badge badge-date">${memberAttendance}/${totalProgramsCount} (${attendanceRate}%)</span>
+                </div>
+            </div>
         `;
+    }).join('');
+}
+
+// =====================
+// Tab Switching
+// =====================
+function initTabs() {
+    const tabBtns = document.querySelectorAll('.tab-btn, .bottom-nav-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabName = btn.getAttribute('data-tab');
+
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+
+            document.querySelectorAll(`[data-tab="${tabName}"]`).forEach(b => b.classList.add('active'));
+            document.getElementById(tabName).classList.add('active');
+        });
     });
 }
 
-// --------------------------------------------------
-// Tab switching (same as your original code)
-// --------------------------------------------------
-const tabBtns = document.querySelectorAll(".tab-btn");
-const tabs = document.querySelectorAll(".tab-content");
+// =====================
+// Modal Functions & Submit Handlers
+// =====================
+// ... Keep all your existing submitMessage, submitProgram, submitMember, submitAttendance
+// ... and modal open/close functions exactly as in your original code
 
-tabBtns.forEach(btn => {
-    btn.addEventListener("click", () => {
-        document.querySelector(".tab-btn.active").classList.remove("active");
-        btn.classList.add("active");
-
-        document.querySelector(".tab-content.active").classList.remove("active");
-        document.getElementById(btn.dataset.tab).classList.add("active");
-    });
+// =====================
+// Init App
+// =====================
+document.addEventListener('DOMContentLoaded', () => {
+    initTabs();
+    renderMessages();
+    renderPrograms();
+    renderMembersAndAttendance();
 });
