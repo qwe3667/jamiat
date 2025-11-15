@@ -1,48 +1,32 @@
+// =====================
+// Firebase Initialization
+// =====================
+const firebaseConfig = {
+    apiKey: "AIzaSyBbtDb7EIOmaP7ytK3IVGqFcyLJwKPfSnc",
+    authDomain: "jamiat-7dbdb.firebaseapp.com",
+    projectId: "jamiat-7dbdb",
+    storageBucket: "jamiat-7dbdb.appspot.com",
+    messagingSenderId: "568010033874",
+    appId: "1:568010033874:web:4af8a3b81634dca4e53b0b",
+    measurementId: "G-84DJH4HE48"
+};
 
-// Initialize data from localStorage or use default data
-let messages = JSON.parse(localStorage.getItem('messages')) || [
-    {
-        id: 1,
-        name: 'Ahmed Ali',
-        message: 'Assalamu Alaikum! Reminder that our next study circle will be this Friday at 7 PM. Please make sure to attend.',
-        date: new Date(Date.now() - 86400000).toISOString(),
-        images: []
-    }
-];
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const storage = firebase.storage();
 
-let programs = JSON.parse(localStorage.getItem('programs')) || [
-    {
-        id: 1,
-        title: 'Weekly Study Circle',
-        date: '2024-11-10',
-        description: 'Our weekly study circle focused on the teachings of the Quran. We had excellent discussions and brother Ahmed led a beautiful presentation.',
-        isUpcoming: false,
-        featuredImage: null,
-        galleryImages: []
-    },
-    {
-        id: 2,
-        title: 'Community Service Day',
-        date: '2024-11-30',
-        description: 'Join us for our upcoming community service day where we\'ll be helping local families in need.',
-        isUpcoming: true,
-        featuredImage: null,
-        galleryImages: []
-    }
-];
+// =====================
+// LocalStorage fallback
+// =====================
+let messages = JSON.parse(localStorage.getItem('messages')) || [];
+let programs = JSON.parse(localStorage.getItem('programs')) || [];
+let members = JSON.parse(localStorage.getItem('members')) || [];
+let attendance = JSON.parse(localStorage.getItem('attendance')) || [];
 
-let members = JSON.parse(localStorage.getItem('members')) || [
-    { id: 1, name: 'Ahmed Ali', joinDate: '2024-01-15' },
-    { id: 2, name: 'Muhammad Hassan', joinDate: '2024-01-20' },
-    { id: 3, name: 'Usman Khan', joinDate: '2024-02-01' }
-];
-
-let attendance = JSON.parse(localStorage.getItem('attendance')) || [
-    { id: 1, programId: 1, memberId: 1, programTitle: 'Weekly Study Circle', memberName: 'Ahmed Ali', date: '2024-11-10' },
-    { id: 2, programId: 1, memberId: 2, programTitle: 'Weekly Study Circle', memberName: 'Muhammad Hassan', date: '2024-11-10' }
-];
-
-// Save data to localStorage
+// =====================
+// Helper Functions
+// =====================
 function saveData() {
     localStorage.setItem('messages', JSON.stringify(messages));
     localStorage.setItem('programs', JSON.stringify(programs));
@@ -50,42 +34,59 @@ function saveData() {
     localStorage.setItem('attendance', JSON.stringify(attendance));
 }
 
-// Tab switching
-function initTabs() {
-    const tabBtns = document.querySelectorAll('.tab-btn, .bottom-nav-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
-
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabName = btn.getAttribute('data-tab');
-            
-            // Remove active class from all buttons and contents
-            document.querySelectorAll('.tab-btn, .bottom-nav-btn').forEach(b => b.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
-            
-            // Add active class to clicked button and corresponding content
-            document.querySelectorAll(`[data-tab="${tabName}"]`).forEach(b => b.classList.add('active'));
-            document.getElementById(tabName).classList.add('active');
-        });
-    });
-}
-
-// Format date
 function formatDate(dateString) {
     const date = new Date(dateString);
     const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
     return date.toLocaleDateString('en-US', options);
 }
 
-// Get initials from name
 function getInitials(name) {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
-// Render Messages
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+}
+
+// =====================
+// Firestore Sync Functions
+// =====================
+
+// Fetch data from Firestore
+async function fetchFirestoreData() {
+    const collections = ['messages', 'programs', 'members', 'attendance'];
+
+    for (let col of collections) {
+        const snapshot = await db.collection(col).get();
+        const data = snapshot.docs.map(doc => doc.data());
+        if (col === 'messages') messages = data;
+        if (col === 'programs') programs = data;
+        if (col === 'members') members = data;
+        if (col === 'attendance') attendance = data;
+    }
+
+    saveData();
+    renderMessages();
+    renderPrograms();
+    renderMembersAndAttendance();
+}
+
+// Add document to Firestore
+function addToFirestore(collection, data) {
+    db.collection(collection).doc(data.id.toString()).set(data);
+}
+
+// =====================
+// Render Functions
+// =====================
 function renderMessages() {
     const messagesList = document.getElementById('messagesList');
-    
+
     if (messages.length === 0) {
         messagesList.innerHTML = `
             <div class="empty-state">
@@ -119,10 +120,9 @@ function renderMessages() {
     `).join('');
 }
 
-// Render Programs
 function renderPrograms() {
     const programsList = document.getElementById('programsList');
-    
+
     if (programs.length === 0) {
         programsList.innerHTML = `
             <div class="empty-state">
@@ -135,7 +135,6 @@ function renderPrograms() {
         return;
     }
 
-    // Sort programs by date (newest first)
     const sortedPrograms = [...programs].sort((a, b) => new Date(b.date) - new Date(a.date));
 
     programsList.innerHTML = sortedPrograms.map(prog => `
@@ -157,14 +156,12 @@ function renderPrograms() {
     `).join('');
 }
 
-// Render Members and Attendance
 function renderMembersAndAttendance() {
     const membersList = document.getElementById('membersList');
     const totalMembersEl = document.getElementById('totalMembers');
     const totalProgramsEl = document.getElementById('totalPrograms');
     const totalAttendanceEl = document.getElementById('totalAttendance');
 
-    // Update stats
     totalMembersEl.textContent = members.length;
     totalProgramsEl.textContent = programs.length;
     totalAttendanceEl.textContent = attendance.length;
@@ -183,8 +180,8 @@ function renderMembersAndAttendance() {
 
     membersList.innerHTML = members.map(member => {
         const memberAttendance = attendance.filter(a => a.memberId === member.id).length;
-        const totalPrograms = programs.filter(p => !p.isUpcoming).length;
-        const attendanceRate = totalPrograms > 0 ? Math.round((memberAttendance / totalPrograms) * 100) : 0;
+        const totalProgramsCount = programs.filter(p => !p.isUpcoming).length;
+        const attendanceRate = totalProgramsCount > 0 ? Math.round((memberAttendance / totalProgramsCount) * 100) : 0;
 
         return `
             <div class="member-card">
@@ -197,79 +194,38 @@ function renderMembersAndAttendance() {
                 </div>
                 <div class="attendance-stat">
                     <span style="color: var(--text-light); font-size: 14px;">Attendance</span>
-                    <span class="badge badge-date">${memberAttendance}/${totalPrograms} (${attendanceRate}%)</span>
+                    <span class="badge badge-date">${memberAttendance}/${totalProgramsCount} (${attendanceRate}%)</span>
                 </div>
             </div>
         `;
     }).join('');
 }
 
-// Modal functions
-function openMessageModal() {
-    document.getElementById('messageModal').style.display = 'block';
-}
+// =====================
+// Tabs & Modals
+// =====================
+function initTabs() {
+    const tabBtns = document.querySelectorAll('.tab-btn, .bottom-nav-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
 
-function closeMessageModal() {
-    document.getElementById('messageModal').style.display = 'none';
-    document.getElementById('messageForm').reset();
-}
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabName = btn.getAttribute('data-tab');
 
-function openProgramModal() {
-    document.getElementById('programModal').style.display = 'block';
-}
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
 
-function closeProgramModal() {
-    document.getElementById('programModal').style.display = 'none';
-    document.getElementById('programForm').reset();
-}
-
-function openMemberModal() {
-    document.getElementById('memberModal').style.display = 'block';
-}
-
-function closeMemberModal() {
-    document.getElementById('memberModal').style.display = 'none';
-    document.getElementById('memberForm').reset();
-}
-
-function openAttendanceModal() {
-    const programSelect = document.getElementById('attendanceProgram');
-    const memberCheckboxes = document.getElementById('memberCheckboxes');
-
-    // Populate program dropdown
-    programSelect.innerHTML = '<option value="">Choose a program</option>' + 
-        programs.map(p => `<option value="${p.id}">${p.title} - ${p.date}</option>`).join('');
-
-    // Populate member checkboxes
-    memberCheckboxes.innerHTML = members.map(m => `
-        <div class="checkbox-item">
-            <input type="checkbox" id="member-${m.id}" value="${m.id}">
-            <label for="member-${m.id}">${m.name}</label>
-        </div>
-    `).join('');
-
-    document.getElementById('attendanceModal').style.display = 'block';
-}
-
-function closeAttendanceModal() {
-    document.getElementById('attendanceModal').style.display = 'none';
-    document.getElementById('attendanceForm').reset();
-}
-
-// Handle image file to base64
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
+            document.querySelectorAll(`[data-tab="${tabName}"]`).forEach(b => b.classList.add('active'));
+            document.getElementById(tabName).classList.add('active');
+        });
     });
 }
 
-// Submit Message
+// =====================
+// Submit Handlers (Modified to save Firestore)
+// =====================
 async function submitMessage(e) {
     e.preventDefault();
-
     const name = document.getElementById('messageName').value;
     const message = document.getElementById('messageText').value;
     const imageFiles = document.getElementById('messageImages').files;
@@ -280,24 +236,16 @@ async function submitMessage(e) {
         images.push(base64);
     }
 
-    const newMessage = {
-        id: Date.now(),
-        name,
-        message,
-        date: new Date().toISOString(),
-        images
-    };
-
+    const newMessage = { id: Date.now(), name, message, date: new Date().toISOString(), images };
     messages.unshift(newMessage);
     saveData();
+    addToFirestore('messages', newMessage);
     renderMessages();
     closeMessageModal();
 }
 
-// Submit Program
 async function submitProgram(e) {
     e.preventDefault();
-
     const title = document.getElementById('programTitle').value;
     const date = document.getElementById('programDate').value;
     const description = document.getElementById('programDesc').value;
@@ -309,55 +257,33 @@ async function submitProgram(e) {
     const isUpcoming = programDate >= today;
 
     let featuredImage = null;
-    if (imageFile) {
-        featuredImage = await fileToBase64(imageFile);
-    }
+    if (imageFile) featuredImage = await fileToBase64(imageFile);
 
     const galleryImages = [];
-    for (let file of galleryFiles) {
-        const base64 = await fileToBase64(file);
-        galleryImages.push(base64);
-    }
+    for (let file of galleryFiles) galleryImages.push(await fileToBase64(file));
 
-    const newProgram = {
-        id: Date.now(),
-        title,
-        date,
-        description,
-        isUpcoming,
-        featuredImage,
-        galleryImages
-    };
-
+    const newProgram = { id: Date.now(), title, date, description, isUpcoming, featuredImage, galleryImages };
     programs.push(newProgram);
     saveData();
+    addToFirestore('programs', newProgram);
     renderPrograms();
-    renderMembersAndAttendance(); // Update program count
+    renderMembersAndAttendance();
     closeProgramModal();
 }
 
-// Submit Member
 function submitMember(e) {
     e.preventDefault();
-
     const name = document.getElementById('memberName').value;
-
-    const newMember = {
-        id: Date.now(),
-        name,
-        joinDate: new Date().toISOString().split('T')[0]
-    };
-
+    const newMember = { id: Date.now(), name, joinDate: new Date().toISOString().split('T')[0] };
     members.push(newMember);
     saveData();
+    addToFirestore('members', newMember);
     renderMembersAndAttendance();
     closeMemberModal();
 }
 
-// Submit Attendance
 function submitAttendance(e) {
     e.preventDefault();
-
     const programId = parseInt(document.getElementById('attendanceProgram').value);
     const checkboxes = document.querySelectorAll('#memberCheckboxes input[type="checkbox"]:checked');
 
@@ -367,25 +293,16 @@ function submitAttendance(e) {
     }
 
     const program = programs.find(p => p.id === programId);
-    
+
     checkboxes.forEach(checkbox => {
         const memberId = parseInt(checkbox.value);
         const member = members.find(m => m.id === memberId);
-        
-        // Check if attendance already exists
-        const existingAttendance = attendance.find(
-            a => a.programId === programId && a.memberId === memberId
-        );
 
+        const existingAttendance = attendance.find(a => a.programId === programId && a.memberId === memberId);
         if (!existingAttendance) {
-            attendance.push({
-                id: Date.now() + Math.random(),
-                programId,
-                memberId,
-                programTitle: program.title,
-                memberName: member.name,
-                date: program.date
-            });
+            const newAttendance = { id: Date.now() + Math.random(), programId, memberId, programTitle: program.title, memberName: member.name, date: program.date };
+            attendance.push(newAttendance);
+            addToFirestore('attendance', newAttendance);
         }
     });
 
@@ -394,20 +311,20 @@ function submitAttendance(e) {
     closeAttendanceModal();
 }
 
-// Close modals when clicking outside
+// =====================
+// Click outside modals to close
+// =====================
 window.onclick = function(event) {
     const modals = document.querySelectorAll('.modal');
     modals.forEach(modal => {
-        if (event.target == modal) {
-            modal.style.display = 'none';
-        }
+        if (event.target == modal) modal.style.display = 'none';
     });
 }
 
-// Initialize app
+// =====================
+// Initialize App
+// =====================
 document.addEventListener('DOMContentLoaded', () => {
     initTabs();
-    renderMessages();
-    renderPrograms();
-    renderMembersAndAttendance();
+    fetchFirestoreData(); // fetch from Firestore instead of only localStorage
 });
